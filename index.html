@@ -1,0 +1,1723 @@
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyAsWny_IrBO_uKjVpXG3nfpRGs34O6yaA8",
+  authDomain: "habits-lioonly.firebaseapp.com",
+  projectId: "habits-lioonly",
+  storageBucket: "habits-lioonly.firebasestorage.app",
+  messagingSenderId: "733334353565",
+  appId: "1:733334353565:web:6b4123da252255a04b8674"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HabitFlow — Daily Goals & Streak Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Tone.js for subtle audio feedback -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            400: '#818cf8',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar and micro-interactions */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.4);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.4);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.7);
+        }
+
+        .check-pop {
+            animation: pop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes pop {
+            0% { transform: scale(0.8); }
+            50% { transform: scale(1.16); }
+            100% { transform: scale(1); }
+        }
+
+        .flame-pulse {
+            animation: pulse-flame 2s infinite ease-in-out;
+        }
+
+        @keyframes pulse-flame {
+            0%, 100% { transform: scale(1) rotate(0deg); filter: drop-shadow(0 0 6px rgba(249, 115, 22, 0.4)); }
+            50% { transform: scale(1.12) rotate(3deg); filter: drop-shadow(0 0 12px rgba(249, 115, 22, 0.75)); }
+        }
+
+        .bar-grow {
+            transition: height 0.5s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans min-h-screen transition-colors duration-300 selection:bg-indigo-500 selection:text-white">
+
+    <!-- Confetti Celebration Canvas -->
+    <canvas id="confetti-canvas" class="fixed inset-0 pointer-events-none z-50"></canvas>
+
+    <!-- Main Container -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+
+        <!-- Top Navigation & Header -->
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-8 border-b border-slate-200 dark:border-slate-800/80">
+            <div class="flex items-center gap-3.5">
+                <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/25 text-white font-extrabold text-2xl">
+                    <span>⚡</span>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2.5">
+                        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-indigo-800 to-indigo-600 dark:from-white dark:via-slate-200 dark:to-indigo-400 bg-clip-text text-transparent">
+                            HabitFlow
+                        </h1>
+                        <span class="text-xs font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                            Weekly Studio
+                        </span>
+                    </div>
+                    <p id="current-date-subtitle" class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                        Build consistency one day at a time
+                    </p>
+                </div>
+            </div>
+
+            <!-- Action Controls -->
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- Cloud Sync Status & Setup Button -->
+                <button onclick="openSyncModal()" id="sync-status-btn" class="px-3 py-2.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-500/60 transition-all shadow-sm flex items-center gap-2" title="Sync across Laptop & Phone">
+                    <span id="sync-dot" class="w-2 h-2 rounded-full bg-amber-400"></span>
+                    <span id="sync-label">Cloud Sync</span>
+                </button>
+
+                <!-- Export JSON Backup -->
+                <button onclick="exportHabitsJSON()" class="px-3 py-2.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-emerald-500/60 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all shadow-sm flex items-center gap-1.5" title="Download 100% Safe .JSON Backup">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/>
+                    </svg>
+                    <span>Export JSON</span>
+                </button>
+
+                <!-- Import JSON Backup -->
+                <button onclick="triggerImportJSON()" class="px-3 py-2.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-500/60 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all shadow-sm flex items-center gap-1.5" title="Restore from .JSON File">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+                    </svg>
+                    <span>Import JSON</span>
+                </button>
+                <input id="import-json-input" type="file" accept=".json,application/json" class="hidden" onchange="handleImportJSONFile(event)" />
+
+                <!-- Sound Toggle -->
+                <button id="sound-toggle-btn" onclick="toggleSound()" class="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-indigo-500/50 transition-all shadow-sm" title="Toggle Sound Effects">
+                    <span id="sound-icon">🔊</span>
+                </button>
+
+                <!-- Theme Toggle -->
+                <button id="theme-toggle-btn" onclick="toggleTheme()" class="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-indigo-500/50 transition-all shadow-sm" title="Switch Light/Dark Theme">
+                    <span id="theme-icon">🌙</span>
+                </button>
+
+                <!-- New Habit CTA -->
+                <button onclick="openNewHabitModal()" class="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white shadow-lg shadow-indigo-600/25 flex items-center gap-2 transition-all">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                    </svg>
+                    <span>Add Habit</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- KPI Summary Strip -->
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 my-8">
+            <!-- Today's Progress Card -->
+            <div class="bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-sm relative overflow-hidden">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Today's Goals</p>
+                        <div class="flex items-baseline gap-2 mt-1">
+                            <h2 id="kpi-today-count" class="text-3xl font-extrabold">0/0</h2>
+                            <span id="kpi-today-pct" class="text-xs font-semibold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">0%</span>
+                        </div>
+                    </div>
+                    <!-- Radial Progress SVG -->
+                    <div class="relative w-14 h-14 flex items-center justify-center">
+                        <svg class="w-14 h-14 -rotate-90" viewBox="0 0 36 36">
+                            <path class="text-slate-100 dark:text-slate-800" stroke-width="3.8" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                            <path id="kpi-today-ring" class="text-indigo-500 transition-all duration-500" stroke-dasharray="0, 100" stroke-width="3.8" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                        </svg>
+                        <span class="absolute text-sm">🎯</span>
+                    </div>
+                </div>
+                <p id="kpi-today-subtext" class="text-xs text-slate-500 dark:text-slate-400 mt-3">Check off habits to build momentum</p>
+            </div>
+
+            <!-- Weekly Completion Rate -->
+            <div class="bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Weekly Completion</p>
+                        <div class="flex items-baseline gap-2 mt-1">
+                            <h2 id="kpi-week-rate" class="text-3xl font-extrabold">0%</h2>
+                            <span id="kpi-week-fraction" class="text-xs text-slate-400">0/0 checks</span>
+                        </div>
+                    </div>
+                    <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-2xl">
+                        📈
+                    </div>
+                </div>
+                <div class="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full mt-4 overflow-hidden">
+                    <div id="kpi-week-bar" class="bg-gradient-to-r from-indigo-500 to-emerald-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Best Active Streak -->
+            <div class="bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Top Active Streak</p>
+                        <div class="flex items-baseline gap-2 mt-1">
+                            <h2 id="kpi-best-streak" class="text-3xl font-extrabold">0 days</h2>
+                        </div>
+                    </div>
+                    <div class="w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-2xl flame-pulse">
+                        🔥
+                    </div>
+                </div>
+                <p id="kpi-best-habit" class="text-xs text-slate-500 dark:text-slate-400 mt-3 truncate">No active streak yet</p>
+            </div>
+
+            <!-- Perfect Days This Week -->
+            <div class="bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Perfect Days (Week)</p>
+                        <div class="flex items-baseline gap-2 mt-1">
+                            <h2 id="kpi-perfect-days" class="text-3xl font-extrabold">0 / 7</h2>
+                        </div>
+                    </div>
+                    <div class="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-2xl">
+                        🏆
+                    </div>
+                </div>
+                <p id="kpi-perfect-sub" class="text-xs text-slate-500 dark:text-slate-400 mt-3">Days with 100% habits completed</p>
+            </div>
+        </section>
+
+        <!-- Main Content Grid: Habit Matrix + Interactive Weekly Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+            <!-- Left Column (7 cols): Interactive Weekly Habit Check-in Matrix -->
+            <div class="lg:col-span-7 bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden">
+                <!-- Matrix Header Bar -->
+                <div class="p-5 sm:p-6 border-b border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h3 class="text-lg font-bold flex items-center gap-2">
+                            <span>Weekly Habit Tracker</span>
+                            <span id="habit-total-pill" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">0 habits</span>
+                        </h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Tap any day cell to log or unlog completion</p>
+                    </div>
+
+                    <!-- Category Filter Pills -->
+                    <div class="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0" id="category-filters">
+                        <button onclick="setCategoryFilter('all')" data-cat="all" class="cat-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 text-white transition-all">All</button>
+                        <button onclick="setCategoryFilter('Health')" data-cat="Health" class="cat-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">Health</button>
+                        <button onclick="setCategoryFilter('Mind')" data-cat="Mind" class="cat-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">Mind</button>
+                        <button onclick="setCategoryFilter('Work')" data-cat="Work" class="cat-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">Work</button>
+                        <button onclick="setCategoryFilter('Fitness')" data-cat="Fitness" class="cat-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">Fitness</button>
+                    </div>
+                </div>
+
+                <!-- Quick Inline Add Bar -->
+                <form onsubmit="handleQuickAdd(event)" class="px-5 sm:px-6 py-3.5 bg-slate-50/70 dark:bg-slate-950/40 border-b border-slate-200/70 dark:border-slate-800/80 flex items-center gap-2.5">
+                    <span class="text-lg">✨</span>
+                    <input
+                        id="quick-habit-input"
+                        type="text"
+                        placeholder="Quick add a daily goal (e.g., Read 20 pages, Drink 2L water)..."
+                        class="flex-1 bg-transparent text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none"
+                        maxlength="45"
+                    />
+                    <button type="submit" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600/10 hover:bg-indigo-600 text-indigo-600 dark:text-indigo-400 hover:text-white transition-all">
+                        + Quick Add
+                    </button>
+                </form>
+
+                <!-- Responsive Table Wrapper -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr id="matrix-day-headers" class="border-b border-slate-200/70 dark:border-slate-800 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                                <!-- Populated dynamically by JS -->
+                            </tr>
+                        </thead>
+                        <tbody id="habit-rows-container" class="divide-y divide-slate-200/60 dark:divide-slate-800/70 text-sm">
+                            <!-- Populated dynamically by JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Empty State (Hidden when habits exist) -->
+                <div id="empty-habits-state" class="hidden py-14 px-6 text-center">
+                    <div class="w-16 h-16 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-3xl mx-auto mb-3">
+                        🌱
+                    </div>
+                    <h4 class="text-base font-bold">No habits in this view yet</h4>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-1">
+                        Start small! Add your first daily ritual using the button above or switch category filters.
+                    </p>
+                    <button onclick="openNewHabitModal()" class="mt-4 px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-500 transition-all">
+                        + Create Custom Habit
+                    </button>
+                </div>
+
+                <!-- Matrix Footer Tips -->
+                <div class="px-6 py-3.5 bg-slate-50/50 dark:bg-slate-950/50 border-t border-slate-200/60 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
+                    <div class="flex items-center gap-4">
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block"></span> Today highlighted
+                        </span>
+                        <span class="flex items-center gap-1.5">
+                            <span>🔥</span> Consecutive days ending today/yesterday
+                        </span>
+                    </div>
+                    <button onclick="checkAllToday()" class="text-indigo-600 dark:text-indigo-400 hover:underline font-semibold">
+                        ✓ Complete All Today
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right Column (5 cols): Weekly Streak & Completion Charts -->
+            <div class="lg:col-span-5 flex flex-col gap-6">
+
+                <!-- Card 1: Interactive Weekly Completion & Streak Chart -->
+                <div class="bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-lg font-bold">Weekly Completion Chart</h3>
+                                <span class="text-xs px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-500 font-semibold">Interactive</span>
+                            </div>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Click any day bar to inspect completed habits</p>
+                        </div>
+                        <div class="text-right">
+                            <span id="chart-selected-day-label" class="text-xs font-bold uppercase tracking-wider text-indigo-500">Today</span>
+                            <p id="chart-selected-day-score" class="text-sm font-extrabold">0 / 0 done</p>
+                        </div>
+                    </div>
+
+                    <!-- Bar Chart Area -->
+                    <div class="relative h-52 pt-6 pb-2 px-2 bg-slate-50/70 dark:bg-slate-950/60 rounded-2xl border border-slate-200/60 dark:border-slate-800/80 flex flex-col justify-between">
+                        <!-- Horizontal Goal Guideline (100% Perfect Line) -->
+                        <div class="absolute inset-x-4 top-6 border-b border-dashed border-emerald-500/40 flex justify-end pointer-events-none">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-500 bg-slate-50 dark:bg-slate-950 px-1.5 -mt-2">100% Goal</span>
+                        </div>
+
+                        <!-- 7-Day Columns Container -->
+                        <div id="weekly-bars-container" class="grid grid-cols-7 gap-2 sm:gap-3 items-end h-full pt-4 px-1">
+                            <!-- Populated dynamically by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Selected Day Breakdown Box -->
+                    <div class="mt-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200/60 dark:border-slate-800/80">
+                        <div class="flex items-center justify-between mb-2">
+                            <span id="day-inspector-title" class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                Day Breakdown
+                            </span>
+                            <span id="day-inspector-badge" class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500">
+                                0% Complete
+                            </span>
+                        </div>
+                        <div id="day-inspector-list" class="flex flex-wrap gap-1.5 mt-2">
+                            <!-- Populated dynamically when clicking a bar or toggling habits -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 2: Habit Streak Leaderboard & Weekly Target Progress -->
+                <div class="bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-lg font-bold flex items-center gap-2">
+                                <span>🔥 Streak & Goal Leaderboard</span>
+                            </h3>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Current consecutive days & weekly target progress</p>
+                        </div>
+                    </div>
+
+                    <div id="streak-leaderboard-list" class="space-y-3.5">
+                        <!-- Populated dynamically by JS -->
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Modal: Add New Habit -->
+    <div id="habit-modal" class="fixed inset-0 z-40 hidden items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl transform transition-all">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
+                <h3 class="text-lg font-bold">Create Custom Habit</h3>
+                <button onclick="closeNewHabitModal()" class="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    ✕
+                </button>
+            </div>
+
+            <form onsubmit="handleModalAddHabit(event)" class="space-y-4 mt-5">
+                <!-- Habit Name -->
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                        Habit Title *
+                    </label>
+                    <input
+                        id="modal-habit-name"
+                        type="text"
+                        required
+                        maxlength="40"
+                        placeholder="e.g., Morning Mobility Routine"
+                        class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm focus:outline-none focus:border-indigo-500"
+                    />
+                </div>
+
+                <!-- Icon & Category Row -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                            Icon Emoji
+                        </label>
+                        <select id="modal-habit-icon" class="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm focus:outline-none focus:border-indigo-500">
+                            <option value="💧">💧 Hydration</option>
+                            <option value="🏃">🏃 Cardio / Run</option>
+                            <option value="📚">📚 Reading</option>
+                            <option value="🧘">🧘 Meditation</option>
+                            <option value="💻">💻 Deep Work</option>
+                            <option value="🥗">🥗 Healthy Meal</option>
+                            <option value="💤">💤 Sleep 8h</option>
+                            <option value="🎸">🎸 Creative Skill</option>
+                            <option value="✍️">✍️ Journaling</option>
+                            <option value="🏋️">🏋️ Strength</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                            Category
+                        </label>
+                        <select id="modal-habit-category" class="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm focus:outline-none focus:border-indigo-500">
+                            <option value="Health">Health</option>
+                            <option value="Fitness">Fitness</option>
+                            <option value="Mind">Mind</option>
+                            <option value="Work">Work</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Weekly Target Days & Accent Color -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                            Weekly Goal
+                        </label>
+                        <select id="modal-habit-target" class="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm focus:outline-none focus:border-indigo-500">
+                            <option value="7">Every day (7x/wk)</option>
+                            <option value="6">6 days / week</option>
+                            <option value="5" selected>5 days / week</option>
+                            <option value="4">4 days / week</option>
+                            <option value="3">3 days / week</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+                            Accent Theme
+                        </label>
+                        <select id="modal-habit-color" class="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm focus:outline-none focus:border-indigo-500">
+                            <option value="indigo">Indigo</option>
+                            <option value="emerald">Emerald</option>
+                            <option value="rose">Rose</option>
+                            <option value="amber">Amber</option>
+                            <option value="sky">Sky Blue</option>
+                            <option value="purple">Purple</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Submit Buttons -->
+                <div class="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-200 dark:border-slate-800">
+                    <button type="button" onclick="closeNewHabitModal()" class="px-4 py-2.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-5 py-2.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/25">
+                        Create Habit
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Custom Modal: Cloud Sync & Multi-Device Setup -->
+    <div id="sync-modal" class="fixed inset-0 z-40 hidden items-center justify-center bg-slate-950/75 backdrop-blur-sm p-4 overflow-y-auto">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl my-8">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
+                <div class="flex items-center gap-2.5">
+                    <span class="text-xl">☁️</span>
+                    <div>
+                        <h3 class="text-lg font-bold">Laptop & Phone Synchronization</h3>
+                        <p id="sync-modal-subtitle" class="text-xs text-slate-500 dark:text-slate-400">Sync your habits in real time across devices</p>
+                    </div>
+                </div>
+                <button onclick="closeSyncModal()" class="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    ✕
+                </button>
+            </div>
+
+            <div class="space-y-5 mt-5 text-sm">
+                <!-- Sync Passkey Room Box -->
+                <div class="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/20">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-1">
+                        1. Shared Sync Key (Room Code)
+                    </label>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                        Enter the exact same secret Sync Key on both your laptop and phone so both devices read and write to the same cloud profile.
+                    </p>
+                    <div class="flex items-center gap-2">
+                        <input
+                            id="sync-key-input"
+                            type="text"
+                            placeholder="e.g., lev-habits-2026-secret"
+                            class="flex-1 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-mono focus:outline-none focus:border-indigo-500"
+                        />
+                        <button onclick="copySyncKey()" type="button" class="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
+                            Copy
+                        </button>
+                        <button onclick="applySyncKey()" type="button" class="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm transition-all">
+                            Connect Key
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Standalone VS Code / GitHub Pages Custom Firebase Config -->
+                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800">
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                            2. Custom Cloud Database Config (For VS Code / GitHub Pages)
+                        </label>
+                        <span id="cloud-provider-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500">
+                            Checking...
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mb-2.5">
+                        When running inside this preview, Cloud Sync works automatically. If you host <code class="px-1 py-0.5 rounded bg-slate-200 dark:bg-slate-800">index.html</code> yourself via GitHub Pages or VS Code, paste a free Firebase Web App config JSON below to enable live cross-device cloud sync anywhere:
+                    </p>
+                    <textarea
+                        id="custom-firebase-config-input"
+                        rows="3"
+                        placeholder='{"apiKey": "...", "authDomain": "...", "projectId": "...", "appId": "..."}'
+                        class="w-full p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-mono focus:outline-none focus:border-indigo-500"
+                    ></textarea>
+                    <div class="flex items-center justify-between mt-2">
+                        <button onclick="loadDemoPreset()" type="button" class="text-xs text-slate-400 hover:text-indigo-400 underline">
+                            Reset to Demo Habits
+                        </button>
+                        <button onclick="saveCustomFirebaseConfig()" type="button" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 hover:opacity-90 transition-all">
+                            Save Cloud Config
+                        </button>
+                    </div>
+                </div>
+
+                <!-- JSON File Backup Reminder -->
+                <div class="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500">
+                    <span>💡 Want a local file backup right now?</span>
+                    <div class="flex items-center gap-2">
+                        <button onclick="exportHabitsJSON()" class="text-emerald-600 dark:text-emerald-400 font-semibold hover:underline">Download .JSON</button>
+                        <span>•</span>
+                        <button onclick="closeSyncModal()" class="font-semibold text-slate-700 dark:text-slate-300">Done</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Banner -->
+    <div id="toast-banner" class="fixed bottom-5 right-5 z-50 pointer-events-none opacity-0 translate-y-3 transition-all duration-300">
+        <div class="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-3 rounded-2xl shadow-xl border border-slate-700/50 flex items-center gap-2.5 text-xs font-semibold">
+            <span id="toast-icon">✨</span>
+            <span id="toast-message">Habit updated!</span>
+        </div>
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        /**************************************************************
+         * STATE & CONFIGURATION
+         **************************************************************/
+        const STORAGE_KEY = 'habitflow_dashboard_state_v2';
+        const SYNC_KEY_STORAGE = 'habitflow_sync_room_key_v1';
+        const CUSTOM_FB_CONFIG_STORAGE = 'habitflow_custom_fb_config_v1';
+        const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        const FULL_DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+        // Determine current day index (0 = Mon ... 6 = Sun)
+        const rawJsDay = new Date().getDay(); // 0=Sun..6=Sat
+        const TODAY_INDEX = rawJsDay === 0 ? 6 : rawJsDay - 1;
+
+        let selectedChartDayIndex = TODAY_INDEX;
+        let activeCategoryFilter = 'all';
+        let soundEnabled = true;
+
+        // Cloud Sync Runtime State
+        let syncRoomKey = 'my-personal-habits';
+        let cloudSaveHook = null;
+        let switchSyncRoomHook = null;
+        let isApplyingRemoteUpdate = false;
+
+        // Color utility lookup for dynamic Tailwind styling
+        const COLOR_MAP = {
+            indigo: {
+                bgCheck: 'bg-indigo-600 border-indigo-500 text-white shadow-indigo-500/30',
+                badge: 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20',
+                bar: 'bg-indigo-500'
+            },
+            emerald: {
+                bgCheck: 'bg-emerald-600 border-emerald-500 text-white shadow-emerald-500/30',
+                badge: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+                bar: 'bg-emerald-500'
+            },
+            rose: {
+                bgCheck: 'bg-rose-600 border-rose-500 text-white shadow-rose-500/30',
+                badge: 'bg-rose-500/10 text-rose-500 border-rose-500/20',
+                bar: 'bg-rose-500'
+            },
+            amber: {
+                bgCheck: 'bg-amber-500 border-amber-400 text-slate-950 shadow-amber-500/30',
+                badge: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
+                bar: 'bg-amber-500'
+            },
+            sky: {
+                bgCheck: 'bg-sky-500 border-sky-400 text-white shadow-sky-500/30',
+                badge: 'bg-sky-500/10 text-sky-500 border-sky-500/20',
+                bar: 'bg-sky-500'
+            },
+            purple: {
+                bgCheck: 'bg-purple-600 border-purple-500 text-white shadow-purple-500/30',
+                badge: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+                bar: 'bg-purple-500'
+            }
+        };
+
+        // Default rich demo habits
+        function getDefaultHabits() {
+            return [
+                {
+                    id: 'h1',
+                    name: 'Hydrate 2.5L Water',
+                    icon: '💧',
+                    category: 'Health',
+                    target: 7,
+                    color: 'sky',
+                    priorStreak: 5, // consecutive days before Monday
+                    days: [true, true, true, true, true, false, false]
+                },
+                {
+                    id: 'h2',
+                    name: '30m Zone-2 Cardio',
+                    icon: '🏃',
+                    category: 'Fitness',
+                    target: 5,
+                    color: 'emerald',
+                    priorStreak: 2,
+                    days: [true, true, false, true, true, false, false]
+                },
+                {
+                    id: 'h3',
+                    name: 'Deep Work (No Phone)',
+                    icon: '💻',
+                    category: 'Work',
+                    target: 5,
+                    color: 'indigo',
+                    priorStreak: 4,
+                    days: [true, true, true, true, true, false, false]
+                },
+                {
+                    id: 'h4',
+                    name: 'Mindful Meditation',
+                    icon: '🧘',
+                    category: 'Mind',
+                    target: 7,
+                    color: 'purple',
+                    priorStreak: 0,
+                    days: [false, true, true, true, false, false, false]
+                },
+                {
+                    id: 'h5',
+                    name: 'Read 20 Pages',
+                    icon: '📚',
+                    category: 'Mind',
+                    target: 6,
+                    color: 'amber',
+                    priorStreak: 8,
+                    days: [true, true, true, true, true, false, false]
+                }
+            ].map(habit => {
+                // Adjust demo days relative to TODAY_INDEX so the user sees realistic streaks right up to today
+                const alignedDays = [false, false, false, false, false, false, false];
+                for (let d = 0; d <= TODAY_INDEX; d++) {
+                    if (d === TODAY_INDEX) {
+                        // Leave a couple unchecked today so user can enjoy clicking them
+                        alignedDays[d] = (habit.id === 'h1' || habit.id === 'h5');
+                    } else {
+                        alignedDays[d] = habit.days[d % habit.days.length];
+                    }
+                }
+                return { ...habit, days: alignedDays };
+            });
+        }
+
+        let habits = [];
+
+        /**************************************************************
+         * AUDIO FEEDBACK (TONE.JS SYNTH)
+         **************************************************************/
+        let synth = null;
+        function playFeedbackSound(type = 'check') {
+            if (!soundEnabled || typeof Tone === 'undefined') return;
+            try {
+                if (!synth) {
+                    synth = new Tone.PolySynth(Tone.Synth, {
+                        oscillator: { type: 'triangle' },
+                        envelope: { attack: 0.01, decay: 0.12, sustain: 0.05, release: 0.2 }
+                    }).toDestination();
+                    synth.volume.value = -10;
+                }
+                if (Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+                if (type === 'check') {
+                    synth.triggerAttackRelease(['C5', 'E5'], '16n');
+                } else if (type === 'uncheck') {
+                    synth.triggerAttackRelease(['A4'], '32n');
+                } else if (type === 'celebrate') {
+                    const now = Tone.now();
+                    synth.triggerAttackRelease('C5', '16n', now);
+                    synth.triggerAttackRelease('E5', '16n', now + 0.08);
+                    synth.triggerAttackRelease('G5', '16n', now + 0.16);
+                    synth.triggerAttackRelease('C6', '8n', now + 0.24);
+                }
+            } catch (e) {
+                // Ignore audio errors if browser blocks autoplay
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('sound-icon').textContent = soundEnabled ? '🔊' : '🔇';
+            showToast(soundEnabled ? 'Sound effects enabled' : 'Sound effects muted', soundEnabled ? '🔊' : '🔇');
+        }
+
+        /**************************************************************
+         * STREAK CALCULATION ENGINE
+         **************************************************************/
+        /**
+         * Calculates the active consecutive streak for a habit up through TODAY_INDEX.
+         * Also adds `priorStreak` if Monday..streak is unbroken from the start of the week.
+         */
+        function calculateStreak(habit) {
+            let streak = 0;
+            // Start checking from TODAY_INDEX backwards; if today is not checked yet,
+            // check if yesterday was checked so the active streak isn't zeroed out mid-day.
+            let startDay = habit.days[TODAY_INDEX] ? TODAY_INDEX : TODAY_INDEX - 1;
+
+            if (startDay < 0) {
+                // Today is Monday and not checked yet -> return priorStreak
+                return habit.priorStreak || 0;
+            }
+
+            let unbrokenToMonday = true;
+            for (let d = startDay; d >= 0; d--) {
+                if (habit.days[d]) {
+                    streak++;
+                } else {
+                    unbrokenToMonday = false;
+                    break;
+                }
+            }
+
+            if (unbrokenToMonday) {
+                streak += (habit.priorStreak || 0);
+            }
+            return streak;
+        }
+
+        /**************************************************************
+         * STORAGE & INITIALIZATION
+         **************************************************************/
+        function loadState() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        habits = parsed;
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.warn('Could not read state from storage:', err);
+            }
+            habits = getDefaultHabits();
+        }
+
+        function saveState() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(habits));
+            } catch (err) {
+                console.warn('Could not save state:', err);
+            }
+            // Push to Cloud Sync if connected and not currently receiving a remote snapshot
+            if (!isApplyingRemoteUpdate && typeof cloudSaveHook === 'function') {
+                cloudSaveHook(habits);
+            }
+        }
+
+        function loadDemoPreset() {
+            habits = getDefaultHabits();
+            saveState();
+            renderAll();
+            showToast('Demo habits & streaks restored!', '✨');
+        }
+
+        /**************************************************************
+         * 100% SAFE JSON FILE EXPORT & IMPORT
+         **************************************************************/
+        function exportHabitsJSON() {
+            const payload = {
+                app: 'HabitFlow',
+                version: 2,
+                exportedAt: new Date().toISOString(),
+                syncRoomKey,
+                habits
+            };
+
+            const jsonString = JSON.stringify(payload, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+
+            const dateStamp = new Date().toISOString().slice(0, 10);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `habitflow-backup-${dateStamp}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            playFeedbackSound('check');
+            showToast('Downloaded habitflow-backup.json!', '💾');
+        }
+
+        function triggerImportJSON() {
+            const fileInput = document.getElementById('import-json-input');
+            if (fileInput) {
+                fileInput.value = '';
+                fileInput.click();
+            }
+        }
+
+        function handleImportJSONFile(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    const importedHabits = Array.isArray(parsed) ? parsed : parsed.habits;
+
+                    if (!Array.isArray(importedHabits)) {
+                        showToast('Invalid JSON format: missing habits list', '⚠️');
+                        return;
+                    }
+
+                    // Sanitize imported habits
+                    habits = importedHabits.map((h, idx) => ({
+                        id: h.id || ('h_imp_' + idx + '_' + Date.now()),
+                        name: String(h.name || 'Untitled Habit').slice(0, 45),
+                        icon: h.icon || '✨',
+                        category: h.category || 'Health',
+                        target: Number(h.target) || 5,
+                        color: h.color || 'indigo',
+                        priorStreak: Number(h.priorStreak) || 0,
+                        days: Array.isArray(h.days) && h.days.length === 7
+                            ? h.days.map(Boolean)
+                            : [false, false, false, false, false, false, false]
+                    }));
+
+                    saveState();
+                    renderAll();
+                    playFeedbackSound('celebrate');
+                    triggerConfetti();
+                    showToast(`Restored ${habits.length} habits from JSON!`, '📂');
+                } catch (err) {
+                    console.error('Failed to import JSON:', err);
+                    showToast('Could not parse JSON backup file', '❌');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        /**************************************************************
+         * CLOUD SYNC MODAL CONTROLS
+         **************************************************************/
+        function openSyncModal() {
+            const modal = document.getElementById('sync-modal');
+            const keyInput = document.getElementById('sync-key-input');
+            const fbInput = document.getElementById('custom-firebase-config-input');
+
+            keyInput.value = syncRoomKey;
+            const savedCustomFb = localStorage.getItem(CUSTOM_FB_CONFIG_STORAGE);
+            if (savedCustomFb) {
+                fbInput.value = savedCustomFb;
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeSyncModal() {
+            const modal = document.getElementById('sync-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function copySyncKey() {
+            const input = document.getElementById('sync-key-input');
+            input.select();
+            document.execCommand('copy');
+            showToast('Sync Key copied to clipboard!', '📋');
+        }
+
+        function applySyncKey() {
+            const raw = document.getElementById('sync-key-input').value.trim();
+            if (!raw) {
+                showToast('Please enter a non-empty Sync Key', '⚠️');
+                return;
+            }
+            // Sanitize key for safe Firestore document ID usage
+            syncRoomKey = raw.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
+            localStorage.setItem(SYNC_KEY_STORAGE, syncRoomKey);
+            document.getElementById('sync-key-input').value = syncRoomKey;
+
+            if (typeof switchSyncRoomHook === 'function') {
+                switchSyncRoomHook(syncRoomKey);
+            } else {
+                showToast(`Sync Key saved (${syncRoomKey})`, '🔑');
+            }
+        }
+
+        function saveCustomFirebaseConfig() {
+            const raw = document.getElementById('custom-firebase-config-input').value.trim();
+            if (!raw) {
+                localStorage.removeItem(CUSTOM_FB_CONFIG_STORAGE);
+                showToast('Cleared custom cloud config. Reload page to apply.', '🗑️');
+                return;
+            }
+            try {
+                const parsed = JSON.parse(raw);
+                if (!parsed.apiKey || !parsed.projectId) {
+                    showToast('Config JSON must contain apiKey and projectId', '⚠️');
+                    return;
+                }
+                localStorage.setItem(CUSTOM_FB_CONFIG_STORAGE, JSON.stringify(parsed));
+                showToast('Cloud config saved! Reconnecting...', '☁️');
+                setTimeout(() => window.location.reload(), 800);
+            } catch (e) {
+                showToast('Invalid JSON format for Firebase config', '❌');
+            }
+        }
+
+        function updateSyncStatusUI(state, detailText) {
+            const dot = document.getElementById('sync-dot');
+            const label = document.getElementById('sync-label');
+            const badge = document.getElementById('cloud-provider-badge');
+            const subtitle = document.getElementById('sync-modal-subtitle');
+
+            if (state === 'live') {
+                dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+                label.textContent = `Synced (${syncRoomKey.slice(0, 10)})`;
+                if (badge) {
+                    badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500';
+                    badge.textContent = 'Live Cloud Connected';
+                }
+            } else if (state === 'local') {
+                dot.className = 'w-2 h-2 rounded-full bg-amber-400';
+                label.textContent = 'Local + JSON Mode';
+                if (badge) {
+                    badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500';
+                    badge.textContent = 'Local Browser Storage';
+                }
+            } else if (state === 'error') {
+                dot.className = 'w-2 h-2 rounded-full bg-rose-500';
+                label.textContent = 'Sync Offline';
+            }
+            if (subtitle && detailText) {
+                subtitle.textContent = detailText;
+            }
+        }
+
+        /**************************************************************
+         * RENDER PIPELINE
+         **************************************************************/
+        function renderAll() {
+            renderHeaderDate();
+            renderMatrixHeaders();
+            renderHabitRows();
+            renderKPIs();
+            renderWeeklyChart();
+            renderDayInspector();
+            renderStreakLeaderboard();
+        }
+
+        function renderHeaderDate() {
+            const now = new Date();
+            const options = { weekday: 'long', month: 'short', day: 'numeric' };
+            const formatted = now.toLocaleDateString('en-US', options);
+            document.getElementById('current-date-subtitle').textContent =
+                `Today is ${formatted} • Track daily rituals & build unstoppable streaks`;
+        }
+
+        function renderMatrixHeaders() {
+            const tr = document.getElementById('matrix-day-headers');
+            let html = `<th class="py-3.5 pl-6 pr-3 min-w-[210px]">Habit</th>`;
+
+            DAY_NAMES.forEach((day, idx) => {
+                const isToday = idx === TODAY_INDEX;
+                html += `
+                    <th class="py-3.5 px-2 text-center">
+                        <button onclick="selectChartDay(${idx})" class="mx-auto flex flex-col items-center group focus:outline-none">
+                            <span class="${isToday ? 'text-indigo-500 font-extrabold' : 'group-hover:text-slate-700 dark:group-hover:text-slate-200'}">${day}</span>
+                            ${isToday
+                                ? `<span class="mt-0.5 w-1.5 h-1.5 rounded-full bg-indigo-500"></span>`
+                                : `<span class="mt-0.5 w-1.5 h-1.5 rounded-full bg-transparent"></span>`
+                            }
+                        </button>
+                    </th>
+                `;
+            });
+
+            html += `
+                <th class="py-3.5 px-3 text-center">Streak</th>
+                <th class="py-3.5 pl-2 pr-5 text-right">Action</th>
+            `;
+            tr.innerHTML = html;
+        }
+
+        function renderHabitRows() {
+            const container = document.getElementById('habit-rows-container');
+            const emptyState = document.getElementById('empty-habits-state');
+
+            const filtered = activeCategoryFilter === 'all'
+                ? habits
+                : habits.filter(h => h.category === activeCategoryFilter);
+
+            document.getElementById('habit-total-pill').textContent =
+                `${filtered.length} ${filtered.length === 1 ? 'habit' : 'habits'}`;
+
+            if (filtered.length === 0) {
+                container.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            container.innerHTML = filtered.map(habit => {
+                const theme = COLOR_MAP[habit.color] || COLOR_MAP.indigo;
+                const streak = calculateStreak(habit);
+                const weekDoneCount = habit.days.filter(Boolean).length;
+
+                const dayCells = habit.days.map((done, dayIdx) => {
+                    const isToday = dayIdx === TODAY_INDEX;
+                    const baseRing = isToday
+                        ? 'ring-2 ring-indigo-500/40 dark:ring-indigo-400/40'
+                        : '';
+
+                    const btnClasses = done
+                        ? `${theme.bgCheck} shadow-md`
+                        : `bg-slate-100 dark:bg-slate-800/90 border-slate-200/80 dark:border-slate-700/80 text-transparent hover:border-indigo-400 dark:hover:border-indigo-500`;
+
+                    return `
+                        <td class="py-3.5 px-1.5 text-center">
+                            <button
+                                onclick="toggleHabitDay('${habit.id}', ${dayIdx}, this)"
+                                aria-label="Toggle ${habit.name} for ${FULL_DAY_NAMES[dayIdx]}"
+                                class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl border ${btnClasses} ${baseRing} inline-flex items-center justify-center transition-all duration-150 active:scale-90 focus:outline-none"
+                            >
+                                <svg class="w-5 h-5 ${done ? 'opacity-100' : 'opacity-0'}" fill="none" stroke="currentColor" stroke-width="2.8" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
+                                </svg>
+                            </button>
+                        </td>
+                    `;
+                }).join('');
+
+                return `
+                    <tr class="group hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors">
+                        <!-- Habit Title & Meta -->
+                        <td class="py-3.5 pl-6 pr-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-2xl ${theme.badge} border flex items-center justify-center text-lg shrink-0">
+                                    ${habit.icon}
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="font-semibold text-slate-900 dark:text-slate-100 truncate">${escapeHtml(habit.name)}</p>
+                                    <div class="flex items-center gap-2 mt-0.5">
+                                        <span class="text-[11px] font-medium text-slate-400 dark:text-slate-500">${habit.category}</span>
+                                        <span class="text-slate-300 dark:text-slate-700">•</span>
+                                        <span class="text-[11px] font-semibold ${weekDoneCount >= habit.target ? 'text-emerald-500' : 'text-slate-400'}">
+                                            ${weekDoneCount}/${habit.target} wk goal
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+
+                        <!-- 7 Day Checkboxes -->
+                        ${dayCells}
+
+                        <!-- Current Streak Badge -->
+                        <td class="py-3.5 px-3 text-center">
+                            <div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
+                                streak > 0
+                                    ? 'bg-orange-500/10 text-orange-500 border border-orange-500/20'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                            }">
+                                <span>${streak > 0 ? '🔥' : '⏳'}</span>
+                                <span>${streak}d</span>
+                            </div>
+                        </td>
+
+                        <!-- Delete Habit Action -->
+                        <td class="py-3.5 pl-2 pr-5 text-right">
+                            <button
+                                onclick="deleteHabit('${habit.id}')"
+                                title="Delete habit"
+                                class="p-2 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
+                            >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/>
+                                </svg>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderKPIs() {
+            const totalHabits = habits.length;
+            const completedToday = habits.filter(h => h.days[TODAY_INDEX]).length;
+            const todayPct = totalHabits > 0 ? Math.round((completedToday / totalHabits) * 100) : 0;
+
+            document.getElementById('kpi-today-count').textContent = `${completedToday}/${totalHabits}`;
+            document.getElementById('kpi-today-pct').textContent = `${todayPct}%`;
+            document.getElementById('kpi-today-ring').setAttribute('stroke-dasharray', `${todayPct}, 100`);
+
+            const subtextEl = document.getElementById('kpi-today-subtext');
+            if (totalHabits === 0) {
+                subtextEl.textContent = 'Add a habit to begin tracking';
+            } else if (completedToday === totalHabits) {
+                subtextEl.textContent = '🎉 All daily goals complete! Amazing job!';
+            } else {
+                const rem = totalHabits - completedToday;
+                subtextEl.textContent = `${rem} more ${rem === 1 ? 'habit' : 'habits'} to a perfect day`;
+            }
+
+            // Weekly rate
+            const totalPossibleChecks = totalHabits * 7;
+            const totalChecksDone = habits.reduce((acc, h) => acc + h.days.filter(Boolean).length, 0);
+            const weekRate = totalPossibleChecks > 0 ? Math.round((totalChecksDone / totalPossibleChecks) * 100) : 0;
+
+            document.getElementById('kpi-week-rate').textContent = `${weekRate}%`;
+            document.getElementById('kpi-week-fraction').textContent = `${totalChecksDone}/${totalPossibleChecks} checks`;
+            document.getElementById('kpi-week-bar').style.width = `${weekRate}%`;
+
+            // Top Active Streak
+            let bestStreak = 0;
+            let bestHabitName = 'No active streak yet';
+            habits.forEach(h => {
+                const s = calculateStreak(h);
+                if (s > bestStreak) {
+                    bestStreak = s;
+                    bestHabitName = `${h.icon} ${h.name}`;
+                }
+            });
+
+            document.getElementById('kpi-best-streak').textContent = `${bestStreak} ${bestStreak === 1 ? 'day' : 'days'}`;
+            document.getElementById('kpi-best-habit').textContent = bestHabitName;
+
+            // Perfect Days this week
+            let perfectDays = 0;
+            if (totalHabits > 0) {
+                for (let d = 0; d < 7; d++) {
+                    const allDone = habits.every(h => h.days[d]);
+                    if (allDone) perfectDays++;
+                }
+            }
+            document.getElementById('kpi-perfect-days').textContent = `${perfectDays} / 7`;
+        }
+
+        function renderWeeklyChart() {
+            const container = document.getElementById('weekly-bars-container');
+            const totalHabits = habits.length;
+
+            let html = '';
+            for (let d = 0; d < 7; d++) {
+                const doneCount = habits.filter(h => h.days[d]).length;
+                const pct = totalHabits > 0 ? Math.round((doneCount / totalHabits) * 100) : 0;
+                const isSelected = d === selectedChartDayIndex;
+                const isToday = d === TODAY_INDEX;
+                const isPerfect = totalHabits > 0 && doneCount === totalHabits;
+
+                // Determine bar visual styling
+                let barColor = 'bg-indigo-500 dark:bg-indigo-500';
+                if (isPerfect) {
+                    barColor = 'bg-gradient-to-t from-emerald-600 to-emerald-400 shadow-lg shadow-emerald-500/25';
+                } else if (pct === 0) {
+                    barColor = 'bg-slate-200 dark:bg-slate-800';
+                }
+
+                const visualHeight = Math.max(pct, 8); // keep minimum 8% pill visible
+
+                html += `
+                    <button
+                        onclick="selectChartDay(${d})"
+                        class="group flex flex-col items-center justify-end h-full w-full focus:outline-none"
+                    >
+                        <!-- Percentage Tooltip above bar -->
+                        <span class="text-[10px] font-bold mb-1 transition-all ${
+                            isSelected
+                                ? 'text-indigo-600 dark:text-indigo-400 scale-110'
+                                : 'text-slate-400 opacity-0 group-hover:opacity-100'
+                        }">
+                            ${pct}%
+                        </span>
+
+                        <!-- Bar Track -->
+                        <div class="w-full max-w-[38px] bg-slate-200/70 dark:bg-slate-800/70 rounded-xl h-28 flex items-end p-1 transition-all ${
+                            isSelected ? 'ring-2 ring-indigo-500 bg-indigo-500/5' : ''
+                        }">
+                            <div
+                                class="w-full rounded-lg bar-grow ${barColor}"
+                                style="height: ${visualHeight}%"
+                            ></div>
+                        </div>
+
+                        <!-- Day Label -->
+                        <div class="mt-2 flex items-center gap-1">
+                            <span class="text-xs font-bold ${
+                                isSelected
+                                    ? 'text-indigo-600 dark:text-indigo-400'
+                                    : isToday
+                                        ? 'text-slate-900 dark:text-white underline decoration-indigo-500 decoration-2'
+                                        : 'text-slate-500 dark:text-slate-400'
+                            }">
+                                ${DAY_NAMES[d]}
+                            </span>
+                            ${isPerfect ? `<span class="text-[10px]" title="Perfect Day!">⭐</span>` : ''}
+                        </div>
+                    </button>
+                `;
+            }
+
+            container.innerHTML = html;
+
+            // Update header readout for selected day
+            const selDone = habits.filter(h => h.days[selectedChartDayIndex]).length;
+            document.getElementById('chart-selected-day-label').textContent =
+                selectedChartDayIndex === TODAY_INDEX
+                    ? `${FULL_DAY_NAMES[selectedChartDayIndex]} (Today)`
+                    : FULL_DAY_NAMES[selectedChartDayIndex];
+            document.getElementById('chart-selected-day-score').textContent =
+                `${selDone} / ${totalHabits} completed`;
+        }
+
+        function renderDayInspector() {
+            const d = selectedChartDayIndex;
+            const totalHabits = habits.length;
+            const doneHabits = habits.filter(h => h.days[d]);
+            const pct = totalHabits > 0 ? Math.round((doneHabits.length / totalHabits) * 100) : 0;
+
+            document.getElementById('day-inspector-title').textContent =
+                `${FULL_DAY_NAMES[d]} Log (${doneHabits.length}/${totalHabits})`;
+            document.getElementById('day-inspector-badge').textContent = `${pct}% Complete`;
+
+            const listEl = document.getElementById('day-inspector-list');
+            if (totalHabits === 0) {
+                listEl.innerHTML = `<span class="text-xs text-slate-400">No habits configured.</span>`;
+                return;
+            }
+
+            listEl.innerHTML = habits.map(h => {
+                const isDone = h.days[d];
+                return `
+                    <button
+                        onclick="toggleHabitDay('${h.id}', ${d})"
+                        class="px-2.5 py-1 rounded-xl text-xs font-medium border flex items-center gap-1.5 transition-all ${
+                            isDone
+                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-400 hover:border-slate-400'
+                        }"
+                    >
+                        <span>${isDone ? '✓' : '○'}</span>
+                        <span>${h.icon} ${escapeHtml(h.name)}</span>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function renderStreakLeaderboard() {
+            const container = document.getElementById('streak-leaderboard-list');
+            if (habits.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 py-4 text-center">Add habits to view your streak rankings.</p>`;
+                return;
+            }
+
+            // Sort habits by current streak descending
+            const sorted = [...habits].sort((a, b) => calculateStreak(b) - calculateStreak(a));
+
+            container.innerHTML = sorted.map(habit => {
+                const streak = calculateStreak(habit);
+                const weekDone = habit.days.filter(Boolean).length;
+                const goalPct = Math.min(100, Math.round((weekDone / habit.target) * 100));
+                const theme = COLOR_MAP[habit.color] || COLOR_MAP.indigo;
+
+                return `
+                    <div class="p-3.5 rounded-2xl bg-slate-50/80 dark:bg-slate-950/60 border border-slate-200/60 dark:border-slate-800/80">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center gap-2.5 min-w-0">
+                                <span class="text-lg">${habit.icon}</span>
+                                <div class="truncate">
+                                    <p class="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">${escapeHtml(habit.name)}</p>
+                                    <p class="text-[11px] text-slate-400">Weekly target: ${weekDone}/${habit.target} days (${goalPct}%)</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-orange-500/10 text-orange-500 font-extrabold text-xs shrink-0">
+                                <span>🔥</span>
+                                <span>${streak} day streak</span>
+                            </div>
+                        </div>
+                        <div class="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                            <div class="${theme.bar} h-full rounded-full transition-all duration-500" style="width: ${goalPct}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        /**************************************************************
+         * USER INTERACTIONS & EVENT HANDLERS
+         **************************************************************/
+        function toggleHabitDay(habitId, dayIdx, btnEl = null) {
+            const habit = habits.find(h => h.id === habitId);
+            if (!habit) return;
+
+            habit.days[dayIdx] = !habit.days[dayIdx];
+            const isNowChecked = habit.days[dayIdx];
+
+            // Select that day on the chart automatically so the user sees immediate correlation
+            selectedChartDayIndex = dayIdx;
+
+            saveState();
+            renderAll();
+
+            // Check if all habits for that day are now 100% done
+            const allDoneForDay = habits.length > 0 && habits.every(h => h.days[dayIdx]);
+            if (isNowChecked && allDoneForDay) {
+                playFeedbackSound('celebrate');
+                triggerConfetti();
+                showToast(`100% Perfect ${FULL_DAY_NAMES[dayIdx]} unlocked! 🏆`, '🎉');
+            } else {
+                playFeedbackSound(isNowChecked ? 'check' : 'uncheck');
+            }
+        }
+
+        function checkAllToday() {
+            if (habits.length === 0) return;
+            habits.forEach(h => {
+                h.days[TODAY_INDEX] = true;
+            });
+            selectedChartDayIndex = TODAY_INDEX;
+            saveState();
+            renderAll();
+            playFeedbackSound('celebrate');
+            triggerConfetti();
+            showToast('All of today’s habits marked complete!', '🏆');
+        }
+
+        function selectChartDay(dayIdx) {
+            selectedChartDayIndex = dayIdx;
+            renderWeeklyChart();
+            renderDayInspector();
+        }
+
+        function setCategoryFilter(cat) {
+            activeCategoryFilter = cat;
+            document.querySelectorAll('.cat-btn').forEach(btn => {
+                if (btn.getAttribute('data-cat') === cat) {
+                    btn.className = 'cat-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 text-white transition-all';
+                } else {
+                    btn.className = 'cat-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all';
+                }
+            });
+            renderHabitRows();
+        }
+
+        function handleQuickAdd(e) {
+            e.preventDefault();
+            const input = document.getElementById('quick-habit-input');
+            const name = input.value.trim();
+            if (!name) return;
+
+            const icons = ['✨', '⚡', '🎯', '🌱', '🔥', '🚀'];
+            const colors = ['indigo', 'emerald', 'sky', 'amber', 'purple', 'rose'];
+
+            const newHabit = {
+                id: 'h_' + Date.now(),
+                name,
+                icon: icons[habits.length % icons.length],
+                category: activeCategoryFilter === 'all' ? 'Health' : activeCategoryFilter,
+                target: 5,
+                color: colors[habits.length % colors.length],
+                priorStreak: 0,
+                days: [false, false, false, false, false, false, false]
+            };
+
+            habits.unshift(newHabit);
+            input.value = '';
+            saveState();
+            renderAll();
+            playFeedbackSound('check');
+            showToast(`Added "${name}"`, '✨');
+        }
+
+        function openNewHabitModal() {
+            const modal = document.getElementById('habit-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => document.getElementById('modal-habit-name').focus(), 50);
+        }
+
+        function closeNewHabitModal() {
+            const modal = document.getElementById('habit-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function handleModalAddHabit(e) {
+            e.preventDefault();
+            const nameInput = document.getElementById('modal-habit-name');
+            const name = nameInput.value.trim();
+            if (!name) return;
+
+            const icon = document.getElementById('modal-habit-icon').value;
+            const category = document.getElementById('modal-habit-category').value;
+            const target = parseInt(document.getElementById('modal-habit-target').value, 10) || 5;
+            const color = document.getElementById('modal-habit-color').value;
+
+            const newHabit = {
+                id: 'h_' + Date.now(),
+                name,
+                icon,
+                category,
+                target,
+                color,
+                priorStreak: 0,
+                days: [false, false, false, false, false, false, false]
+            };
+
+            habits.unshift(newHabit);
+            nameInput.value = '';
+            closeNewHabitModal();
+            saveState();
+            renderAll();
+            playFeedbackSound('check');
+            showToast(`Created habit "${name}"`, icon);
+        }
+
+        function deleteHabit(habitId) {
+            const target = habits.find(h => h.id === habitId);
+            habits = habits.filter(h => h.id !== habitId);
+            saveState();
+            renderAll();
+            if (target) {
+                showToast(`Removed "${target.name}"`, '🗑️');
+            }
+        }
+
+        function toggleTheme() {
+            const htmlEl = document.documentElement;
+            const isDark = htmlEl.classList.toggle('dark');
+            document.getElementById('theme-icon').textContent = isDark ? '🌙' : '☀️';
+        }
+
+        /**************************************************************
+         * TOAST & CONFETTI HELPERS
+         **************************************************************/
+        let toastTimer = null;
+        function showToast(message, icon = '✨') {
+            const banner = document.getElementById('toast-banner');
+            document.getElementById('toast-message').textContent = message;
+            document.getElementById('toast-icon').textContent = icon;
+
+            banner.classList.remove('opacity-0', 'translate-y-3');
+            banner.classList.add('opacity-100', 'translate-y-0');
+
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                banner.classList.remove('opacity-100', 'translate-y-0');
+                banner.classList.add('opacity-0', 'translate-y-3');
+            }, 2600);
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/[&<>"']/g, m => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[m]));
+        }
+
+        // Lightweight Canvas Confetti for 100% completion celebration
+        function triggerConfetti() {
+            const canvas = document.getElementById('confetti-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const pieces = Array.from({ length: 55 }, () => ({
+                x: window.innerWidth / 2 + (Math.random() - 0.5) * 260,
+                y: window.innerHeight / 2,
+                vx: (Math.random() - 0.5) * 12,
+                vy: -Math.random() * 14 - 4,
+                size: Math.random() * 7 + 4,
+                color: ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#38bdf8'][Math.floor(Math.random() * 5)],
+                rot: Math.random() * Math.PI,
+                vRot: (Math.random() - 0.5) * 0.2
+            }));
+
+            let frame = 0;
+            function animateConfetti() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                pieces.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.42; // gravity
+                    p.rot += p.vRot;
+
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.rot);
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                    ctx.restore();
+                });
+                frame++;
+                if (frame < 75) {
+                    requestAnimationFrame(animateConfetti);
+                } else {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+            animateConfetti();
+        }
+
+        // Initialize on window load
+        window.onload = function () {
+            const savedRoom = localStorage.getItem(SYNC_KEY_STORAGE);
+            if (savedRoom) {
+                syncRoomKey = savedRoom;
+            } else {
+                syncRoomKey = 'habitflow-default-room';
+                localStorage.setItem(SYNC_KEY_STORAGE, syncRoomKey);
+            }
+            loadState();
+            renderAll();
+        };
+    </script>
+
+    <!-- Real-Time Cloud Sync Engine (Firebase Firestore) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        let db = null;
+        let auth = null;
+        let currentUser = null;
+        let unsubscribeSnapshot = null;
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'habitflow-standalone-app';
+
+        function resolveFirebaseConfig() {
+            return {
+                apiKey: "AIzaSyAsWny_IrBO_uKjVpXG3nfpRGs34O6yaA8",
+                authDomain: "habits-lioonly.firebaseapp.com",
+                projectId: "habits-lioonly",
+                storageBucket: "habits-lioonly.firebasestorage.app",
+                messagingSenderId: "733334353565",
+                appId: "1:733334353565:web:6b4123da252255a04b8674"
+            };
+        }
+
+        async function initCloudSync() {
+            const firebaseConfig = resolveFirebaseConfig();
+            if (!firebaseConfig) {
+                updateSyncStatusUI('local', 'Running in Local + JSON mode. Paste a Firebase config below to sync across devices.');
+                return;
+            }
+
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // RULE 3: Authenticate FIRST before any Firestore operation
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                currentUser = auth.currentUser;
+
+                if (!currentUser) {
+                    updateSyncStatusUI('local', 'Anonymous auth not enabled. Using Local + JSON storage.');
+                    return;
+                }
+
+                // Register save hook so any UI toggle writes to Firestore
+                cloudSaveHook = async (latestHabits) => {
+                    if (!currentUser || !db) return;
+                    try {
+                        const roomDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'habitflow_sync_rooms', syncRoomKey);
+                        await setDoc(roomDocRef, {
+                            habitsJson: JSON.stringify(latestHabits),
+                            updatedAt: Date.now(),
+                            updatedBy: currentUser.uid
+                        });
+                    } catch (err) {
+                        console.error('Cloud save error:', err);
+                    }
+                };
+
+                // Register room switch hook so changing Sync Key re-subscribes immediately
+                switchSyncRoomHook = (newRoomKey) => {
+                    subscribeToRoom(newRoomKey);
+                };
+
+                // Start listening to active Sync Key room
+                subscribeToRoom(syncRoomKey);
+
+            } catch (err) {
+                console.warn('Cloud sync initialization skipped:', err);
+                updateSyncStatusUI('local', 'Local + JSON mode active.');
+            }
+        }
+
+        async function subscribeToRoom(roomKey) {
+            if (!currentUser || !db) return;
+            if (unsubscribeSnapshot) {
+                unsubscribeSnapshot();
+            }
+
+            const roomDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'habitflow_sync_rooms', roomKey);
+
+            try {
+                // Check if room already exists in cloud; if not, seed it with current local habits
+                const existingSnap = await getDoc(roomDocRef);
+                if (!existingSnap.exists()) {
+                    await setDoc(roomDocRef, {
+                        habitsJson: JSON.stringify(habits),
+                        updatedAt: Date.now(),
+                        updatedBy: currentUser.uid
+                    });
+                }
+            } catch (e) {
+                console.warn('Initial room check failed:', e);
+            }
+
+            unsubscribeSnapshot = onSnapshot(
+                roomDocRef,
+                (docSnap) => {
+                    updateSyncStatusUI('live', `Connected to Sync Key "${roomKey}"`);
+                    if (!docSnap.exists()) return;
+
+                    const data = docSnap.data();
+                    if (data && data.habitsJson) {
+                        try {
+                            const remoteHabits = JSON.parse(data.habitsJson);
+                            if (Array.isArray(remoteHabits)) {
+                                isApplyingRemoteUpdate = true;
+                                habits = remoteHabits;
+                                localStorage.setItem('habitflow_dashboard_state_v2', JSON.stringify(habits));
+                                renderAll();
+                                isApplyingRemoteUpdate = false;
+                            }
+                        } catch (parseErr) {
+                            console.error('Failed to parse synced habits:', parseErr);
+                        }
+                    }
+                },
+                (err) => {
+                    console.error('Firestore listener error:', err);
+                    updateSyncStatusUI('error', 'Could not reach cloud room. Local storage still active.');
+                }
+            );
+
+            showToast(`Connected to Sync Key: ${roomKey}`, '☁️');
+        }
+
+        // Start Cloud Sync after DOM initialization
+        initCloudSync();
+    </script>
+</body>
+</html>
